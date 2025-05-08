@@ -6,7 +6,7 @@ module.exports = {
 	config: {
 		name: "welcome",
 		version: "1.7",
-		author: "NTKhang",
+		author: "𝑺𝒉𝑨𝒏",
 		category: "events"
 	},
 
@@ -22,14 +22,21 @@ module.exports = {
 			defaultWelcomeMessage: "Xin chào {userName}.\nChào mừng bạn đến với {boxName}.\nChúc bạn có buổi {session} vui vẻ!"
 		},
 		en: {
-			session1: "morning",
-			session2: "noon",
-			session3: "afternoon",
-			session4: "evening",
-			welcomeMessage: "Thank you for inviting me to the group!\nBot prefix: %1\nTo view the list of commands, please enter: %1help",
-			multiple1: "you",
-			multiple2: "you guys",
-			defaultWelcomeMessage: `Hello {userName}.\nWelcome {multiple} to the chat group: {boxName}\nHave a nice {session} 😊`
+			session1: "𝐌𝐎𝐑𝐍𝐈𝐍𝐆",
+			session: "𝐍𝐎𝐎𝐍",
+			session3: "𝐀𝐅𝐓𝐄𝐑𝐍𝐎𝐎𝐍",
+			session4: "𝐄𝐕𝐄𝐍𝐈𝐍𝐆",
+			session5: "𝐍𝐈𝐆𝐇𝐓",
+			welcomeMessage: `𝐀𝐒𝐒𝐀𝐋𝐀𝐌𝐔𝐀𝐊𝐀𝐈𝐊𝐔𝐌\n	 `
+				+ `\n ♻ 𝐓𝐇𝐄 𝐁𝐎𝐓 𝐇𝐀𝐒 𝐁𝐄𝐄𝐍 𝐂𝐎𝐍𝐍𝐄𝐂𝐄𝐓 𝐓𝐎 𝐓𝐇𝐄 𝐆𝐑𝐎𝐔𝐏 ⚜`
+				+ `\n ⚜🔹𝐁𝐎𝐓 𝐏𝐑𝐄𝐅𝐈𝐗🔹: %1`
+				+ `\n __________________________`
+				+ `\n ~𝐎𝐖𝐍𝐄𝐑🔹:https://www.facebook.com/arafatas602`
+				+ `\n __________________________`
+				+ `\n 💠|❇ 𝐓𝐎 𝐕𝐈𝐄𝐖 𝐂𝐎𝐌𝐌𝐀𝐌𝐃𝐒 𝐏𝐋𝐀𝐒𝐄 𝐄𝐍𝐓𝐄𝐑: %1help`,
+			multiple1: "𝐓𝐎 𝐓𝐇𝐄",
+			multiple2: "𝐓𝐎 𝐎𝐔𝐑",
+			defaultWelcomeMessage: `✨ 𝐀𝐒𝐒𝐀𝐋𝐀𝐌𝐔𝐀𝐊𝐀𝐈𝐊𝐔𝐌 ✨\n 	 \n~🦋 𝐇𝐄𝐋𝐋𝐎 𝐃𝐄𝐀𝐑 {userName}.\n~😽𝐖𝐄𝐋𝐂𝐎𝐌𝐄 {multiple} 𝐂𝐇𝐀𝐓 𝐆𝐑𝐎𝐔𝐏:{boxName} \n~💫𝐖𝐈𝐒𝐇𝐈𝐍𝐆 𝐖𝐄 𝐀 𝐋𝐎𝐕𝐄𝐋𝐘 {session} 😜`
 		}
 	},
 

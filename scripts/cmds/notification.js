@@ -5,14 +5,14 @@ module.exports = {
 		name: "notification",
 		aliases: ["notify", "noti"],
 		version: "1.7",
-		author: "NTKhang",
+		author: "𝗦𝗵𝗔𝗻",
 		countDown: 5,
 		role: 2,
 		description: {
 			vi: "Gửi thông báo từ admin đến all box",
 			en: "Send notification from admin to all box"
 		},
-		category: "owner",
+		category: "𝗢𝗪𝗡𝗘𝗥",
 		guide: {
 			en: "{pn} <tin nhắn>"
 		},
@@ -30,8 +30,8 @@ module.exports = {
 			errorSendingNotification: "Có lỗi xảy ra khi gửi đến %1 nhóm:\n%2"
 		},
 		en: {
-			missingMessage: "Please enter the message you want to send to all groups",
-			notification: "Notification from admin bot to all chat groups (do not reply to this message)",
+			missingMessage: "Bby ki ki pathaibo oita bolo 🐸",
+			notification: "~🗣️ ADMIN Ⓐⓡⓐⓕⓐⓣ",
 			sendingNotification: "Start sending notification from admin bot to %1 chat groups",
 			sentNotification: "✅ Sent notification to %1 groups successfully",
 			errorSendingNotification: "An error occurred while sending to %1 groups:\n%2"

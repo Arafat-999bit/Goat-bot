@@ -13,14 +13,14 @@ module.exports = {
 	config: {
 		name: "setname",
 		version: "1.5",
-		author: "NTKhang",
+		author: "𝗦𝗵𝗔𝗻",
 		countDown: 5,
 		role: 0,
 		description: {
 			vi: "Đổi biệt danh của tất cả thành viên trong nhóm chat hoặc những thành viên được tag theo một định dạng",
 			en: "Change nickname of all members in chat or members tagged by a format"
 		},
-		category: "box chat",
+		category: "𝗕𝗢𝗫 𝗠𝗔𝗡𝗔𝗚𝗘𝗠𝗘𝗡𝗧",
 		guide: {
 			vi: {
 				body: "   {pn} <nick name>: thay đổi biệt danh của bản thân"

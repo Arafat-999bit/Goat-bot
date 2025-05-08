@@ -4,14 +4,14 @@ module.exports = {
 	config: {
 		name: "sendnoti",
 		version: "1.5",
-		author: "NTKhang",
+		author: "𝗦𝗵𝗔𝗻",
 		countDown: 5,
 		role: 0,
 		description: {
 			vi: "Tạo và gửi thông báo đến các nhóm do bạn quản lý",
 			en: "Create and send notification to groups that you manage"
 		},
-		category: "box chat",
+		category: "𝗕𝗢𝗫 𝗠𝗔𝗡𝗔𝗚𝗘𝗠𝗘𝗡𝗧",
 		guide: {
 			vi: "   {pn} create <groupName>: Tạo một group noti (notification) mới với tên gọi <groupName>"
 				+ "\n   Ví dụ:\n    {pn} create TEAM1"

@@ -2,14 +2,14 @@ module.exports = {
 	config: {
 		name: "refresh",
 		version: "1.2",
-		author: "NTKhang",
+		author: "𝗦𝗵𝗔𝗻",
 		countDown: 60,
 		role: 0,
 		description: {
 			vi: "làm mới thông tin nhóm chat hoặc người dùng",
 			en: "refresh information of group chat or user"
 		},
-		category: "box chat",
+		category: "𝗕𝗢𝗫 𝗠𝗔𝗡𝗔𝗚𝗘𝗠𝗘𝗡𝗧",
 		guide: {
 			vi: "   {pn} [thread | group]: làm mới thông tin nhóm chat của bạn"
 				+ "\n   {pn} group <threadID>: làm mới thông tin nhóm chat theo ID"

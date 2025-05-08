@@ -1,123 +1,84 @@
 const axios = require("axios");
-const moment = require("moment-timezone");
-const Canvas = require("canvas");
-const fs = require("fs-extra");
-
-Canvas.registerFont(
-	__dirname + "/assets/font/BeVietnamPro-SemiBold.ttf", {
-	family: "BeVietnamPro-SemiBold"
-});
-Canvas.registerFont(
-	__dirname + "/assets/font/BeVietnamPro-Regular.ttf", {
-	family: "BeVietnamPro-Regular"
-});
-
-function convertFtoC(F) {
-	return Math.floor((F - 32) / 1.8);
-}
-function formatHours(hours) {
-	return moment(hours).tz("Asia/Ho_Chi_Minh").format("HH[h]mm[p]");
-}
 
 module.exports = {
-	config: {
-		name: "weather",
-		version: "1.2",
-		author: "NTKhang",
-		countDown: 5,
-		role: 0,
-		description: {
-			vi: "xem dự báo thời tiết hiện tại và 5 ngày sau",
-			en: "view the current and next 5 days weather forecast"
-		},
-		category: "other",
-		guide: {
-			vi: "{pn} <địa điểm>",
-			en: "{pn} <location>"
-		},
-		envGlobal: {
-			weatherApiKey: "d7e795ae6a0d44aaa8abb1a0a7ac19e4"
-		}
-	},
+  config: {
+    name: "weather",
+    aliases: ["আবহাওয়া"],
+    version: "1.3",
+    author: "Arafat Da",
+    countDown: 5,
+    role: 0,
+    shortDescription: {
+      bn: "আবহাওয়া ও সূর্য উঠা/অস্তের সময় দেখাও"
+    },
+    longDescription: {
+      bn: "তোমার শহরের বর্তমান তাপমাত্রা, আবহাওয়া, সূর্য উঠা ও অস্ত যাওয়ার সময় এবং দিন/রাতের দৈর্ঘ্য দেখাও।"
+    },
+    category: "utility",
+    guide: {
+      bn: "{pn} শহরের_নাম (যেমন: {pn} খুলনা)"
+    }
+  },
 
-	langs: {
-		vi: {
-			syntaxError: "Vui lòng nhập địa điểm",
-			notFound: "Không thể tìm thấy địa điểm: %1",
-			error: "Đã xảy ra lỗi: %1",
-			today: "Thời tiết hôm nay: %1\n%2\n🌡 Nhiệt độ thấp nhất - cao nhất %3°C - %4°C\n🌡 Nhiệt độ cảm nhận được %5°C - %6°C\n🌅 Mặt trời mọc %7\n🌄 Mặt trời lặn %8\n🌃 Mặt trăng mọc %9\n🏙️ Mặt trăng lặn %10\n🌞 Ban ngày: %11\n🌙 Ban đêm: %12"
-		},
-		en: {
-			syntaxError: "Please enter a location",
-			notFound: "Location not found: %1",
-			error: "An error has occurred: %1",
-			today: "Today's weather: %1\n%2\n🌡 Low - high temperature %3°C - %4°C\n🌡 Feels like %5°C - %6°C\n🌅 Sunrise %7\n🌄 Sunset %8\n🌃 Moonrise %9\n🏙️ Moonset %10\n🌞 Day: %11\n🌙 Night: %12"
-		}
-	},
+  onStart: async function ({ api, event, args }) {
+    const location = args.join(" ");
+    if (!location) return api.sendMessage("⚠️ অনুগ্রহ করে একটি শহরের নাম দিন।\nউদাহরণ: #weather বরিশাল", event.threadID);
 
-	onStart: async function ({ args, message, envGlobal, getLang }) {
-		const apikey = envGlobal.weatherApiKey;
+    const apiKey = "3fa5f106e4mshb0e1d52c96b1b65p1cf890jsn0031aaf5e24f";
+    const host = "weatherapi-com.p.rapidapi.com";
 
-		const area = args.join(" ");
-		if (!area)
-			return message.reply(getLang("syntaxError"));
-		let areaKey, dataWeather, areaName;
+    try {
+      const [currentRes, astronomyRes] = await Promise.all([
+        axios.get(`https://${host}/current.json?q=${encodeURIComponent(location)}`, {
+          headers: {
+            "X-RapidAPI-Key": apiKey,
+            "X-RapidAPI-Host": host
+          }
+        }),
+        axios.get(`https://${host}/astronomy.json?q=${encodeURIComponent(location)}`, {
+          headers: {
+            "X-RapidAPI-Key": apiKey,
+            "X-RapidAPI-Host": host
+          }
+        })
+      ]);
 
-		try {
-			const response = (await axios.get(`https://api.accuweather.com/locations/v1/cities/search.json?q=${encodeURIComponent(area)}&apikey=${apikey}&language=vi-vn`)).data;
-			if (response.length == 0)
-				return message.reply(getLang("notFound", area));
-			const data = response[0];
-			areaKey = data.Key;
-			areaName = data.LocalizedName;
-		}
-		catch (err) {
-			return message.reply(getLang("error", err.response.data.Message));
-		}
+      const current = currentRes.data.current;
+      const loc = currentRes.data.location;
+      const astro = astronomyRes.data.astronomy.astro;
 
-		try {
-			dataWeather = (await axios.get(`http://api.accuweather.com/forecasts/v1/daily/10day/${areaKey}?apikey=${apikey}&details=true&language=vi`)).data;
-		}
-		catch (err) {
-			return message.reply(`❌ Đã xảy ra lỗi: ${err.response.data.Message}`);
-		}
+      // Sunrise & Sunset Duration Calculation
+      const [sunriseHour, sunriseMinute] = astro.sunrise.split(" ")[0].split(":").map(Number);
+      const [sunsetHour, sunsetMinute] = astro.sunset.split(" ")[0].split(":").map(Number);
+      const sunriseAmPm = astro.sunrise.split(" ")[1];
+      const sunsetAmPm = astro.sunset.split(" ")[1];
 
-		const dataWeatherDaily = dataWeather.DailyForecasts;
-		const dataWeatherToday = dataWeatherDaily[0];
-		const msg = getLang("today", areaName, dataWeather.Headline.Text, convertFtoC(dataWeatherToday.Temperature.Minimum.Value), convertFtoC(dataWeatherToday.Temperature.Maximum.Value), convertFtoC(dataWeatherToday.RealFeelTemperature.Minimum.Value), convertFtoC(dataWeatherToday.RealFeelTemperature.Maximum.Value), formatHours(dataWeatherToday.Sun.Rise), formatHours(dataWeatherToday.Sun.Set), formatHours(dataWeatherToday.Moon.Rise), formatHours(dataWeatherToday.Moon.Set), dataWeatherToday.Day.LongPhrase, dataWeatherToday.Night.LongPhrase);
+      const sunrise24 = sunriseHour % 12 + (sunriseAmPm === "PM" ? 12 : 0);
+      const sunset24 = sunsetHour % 12 + (sunsetAmPm === "PM" ? 12 : 0);
 
-		const bg = await Canvas.loadImage(__dirname + "/assets/image/bgWeather.jpg");
-		const { width, height } = bg;
-		const canvas = Canvas.createCanvas(width, height);
-		const ctx = canvas.getContext("2d");
-		ctx.drawImage(bg, 0, 0, width, height);
-		let X = 100;
-		ctx.fillStyle = "#ffffff";
-		const data = dataWeather.DailyForecasts.slice(0, 7);
-		for (const item of data) {
-			const icon = await Canvas.loadImage("http://vortex.accuweather.com/adc2010/images/slate/icons/" + item.Day.Icon + ".svg");
-			ctx.drawImage(icon, X, 210, 80, 80);
+      const sunriseDate = new Date(0, 0, 0, sunrise24, sunriseMinute);
+      const sunsetDate = new Date(0, 0, 0, sunset24, sunsetMinute);
+      const durationMs = sunsetDate - sunriseDate;
+      const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+      const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
 
-			ctx.font = "30px BeVietnamPro-SemiBold";
-			const maxC = `${convertFtoC(item.Temperature.Maximum.Value)}°C `;
-			ctx.fillText(maxC, X, 366);
+      const message = 
+`📍 শহর: ${loc.name}, ${loc.country}
+--------------------------------
+🌡️ তাপমাত্রা: ${current.temp_c}°C
+🌤️ আবহাওয়া: ${current.condition.text}
+💨 বাতাসের গতি: ${current.wind_kph} কিমি/ঘণ্টা
+💧 আর্দ্রতা: ${current.humidity}%
+🌅 সূর্য উঠবে: ${astro.sunrise}
+🌇 সূর্য অস্ত যাবে: ${astro.sunset}
+🕒 দিনের দৈর্ঘ্য: ${durationHours} ঘণ্টা ${durationMinutes} মিনিট
+📅 সর্বশেষ আপডেট: ${current.last_updated}`;
 
-			ctx.font = "30px BeVietnamPro-Regular";
-			const minC = String(`${convertFtoC(item.Temperature.Minimum.Value)}°C`);
-			const day = moment(item.Date).format("DD");
-			ctx.fillText(minC, X, 445);
-			ctx.fillText(day, X + 20, 140);
+      return api.sendMessage(message, event.threadID);
 
-			X += 135;
-		}
-
-		const pathSaveImg = `${__dirname}/tmp/weather_${areaKey}.jpg`;
-		fs.writeFileSync(pathSaveImg, canvas.toBuffer());
-
-		return message.reply({
-			body: msg,
-			attachment: fs.createReadStream(pathSaveImg)
-		}, () => fs.unlinkSync(pathSaveImg));
-
-	}
+    } catch (error) {
+      console.error(error);
+      return api.sendMessage("❌ দুঃখিত, আবহাওয়ার তথ্য আনতে পারিনি।\nশহরের নামটি সঠিক আছে কিনা চেক করো।", event.threadID);
+    }
+  }
 };

@@ -6,14 +6,14 @@ module.exports = {
 	config: {
 		name: "filteruser",
 		version: "1.6",
-		author: "NTKhang",
+		author: "𝗦𝗵𝗔𝗻",
 		countDown: 5,
 		role: 1,
 		description: {
 			vi: "lọc thành viên nhóm theo số tin nhắn hoặc bị khóa acc",
 			en: "filter group members by number of messages or locked account"
 		},
-		category: "box chat",
+		category: "𝗕𝗢𝗫 𝗖𝗛𝗔𝗧",
 		guide: {
 			vi: "   {pn} [<số tin nhắn> | die]",
 			en: "   {pn} [<number of messages> | die]"

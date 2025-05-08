@@ -4,14 +4,14 @@ module.exports = {
 	config: {
 		name: "daily",
 		version: "1.2",
-		author: "NTKhang",
+		author: "𝗦𝗵𝗔𝗻",
 		countDown: 5,
 		role: 0,
 		description: {
 			vi: "Nhận quà hàng ngày",
 			en: "Receive daily gift"
 		},
-		category: "game",
+		category: "𝗚𝗔𝗠𝗘",
 		guide: {
 			vi: "   {pn}: Nhận quà hàng ngày"
 				+ "\n   {pn} info: Xem thông tin quà hàng ngày",

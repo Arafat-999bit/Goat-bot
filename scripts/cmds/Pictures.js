@@ -2,69 +2,89 @@ const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
 
+const baseApiUrl = async () => {
+  const base = await axios.get(
+    "https://raw.githubusercontent.com/nazrul4x/Noobs/main/Apis.json"
+  );
+  return base.data.api;
+};
+
 module.exports = {
-  config: {
-    name: "pinterest",
-    aliases: ["pin"],
-    version: "1.0.2",
-    author: "JVB",
-    role: 0,
-    countDown: 50,
-    shortDescription: {
-      en: "Search for images on Pinterest"
+    config: {
+        name: "pinterest",
+        aliases: ["pin", "pinsrarch", "pic","image"],
+        version: "1.6.9",
+        author: "♡ Nazrul ♡",
+        countDown: 10,
+        role: 0,
+        Description: "Image Search",
+        category: "image",
     },
-    longDescription: {
-      en: ""
-    },
-    category: "image",
-    guide: {
-      en: "{prefix}pinterest <search query> -<number of images>"
-    }
-  },
 
-  onStart: async function ({ api, event, args, usersData }) {
-    try {
-      const userID = event.senderID;
+    onStart: async function ({ api, event, args }) {
 
-      const keySearch = args.join(" ");
-      if (!keySearch.includes("-")) {
-        return api.sendMessage(`Please enter the search query and number of images to return in the format: ${this.config.guide.en}`, event.threadID, event.messageID);
-      }
-      const keySearchs = keySearch.substr(0, keySearch.indexOf('-')).trim();
-      const numberSearch = parseInt(keySearch.split("-").pop().trim()) || 6;
+        const queryAndLength = args.join(" ").split("-");
+        
+        const image = queryAndLength[0].trim();
+        const length = queryAndLength[1] ? queryAndLength[1].trim() : null;
 
-      const res = await axios.get(`https://celestial-dainsleif-v2.onrender.com/pinterest?pinte=${encodeURIComponent(keySearchs)}`);
-      const data = res.data;
-
-      if (!data || !Array.isArray(data) || data.length === 0) {
-        return api.sendMessage(`No image data found for "${keySearchs}". Please try another search query.`, event.threadID, event.messageID);
-      }
-
-      const imgData = [];
-
-      for (let i = 0; i < Math.min(numberSearch, data.length); i++) {
-        const imageUrl = data[i].image;
+        if (!image || !length || isNaN(length)) {
+            return api.sendMessage(
+                "✨ Usage: /pinterest [keyword] - [count]\nExample: /pinterest rose - 10",
+                event.threadID,
+                event.messageID
+            );
+        }
 
         try {
-          const imgResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-          const imgPath = path.join(__dirname, 'cache', `${i + 1}.jpg`);
-          await fs.outputFile(imgPath, imgResponse.data);
-          imgData.push(fs.createReadStream(imgPath));
+            // Indicate the search is in progress with the search keyword
+            const msg = await api.sendMessage(`✨ Searching for images of "${image}"...!!`, event.threadID);
+
+            // Make an API call to search for images on Pinterest
+            const response = await axios.get(
+                `${await baseApiUrl()}/nazrul/pin?query=${encodeURIComponent(image)}&limit=${encodeURIComponent(length)}`
+            );
+
+            const data = response.data.data;
+
+            if (!data || data.length === 0) {
+                return api.sendMessage(
+                    `⚠️ No images found for "${image}". Please try a different search.`,
+                    event.threadID,
+                    event.messageID
+                );
+            }
+
+            const attachments = [];
+            const totalImagesCount = Math.min(data.length, parseInt(length));
+
+            for (let i = 0; i < totalImagesCount; i++) {
+                const imgUrl = data[i];
+                const imgResponse = await axios.get(imgUrl, {
+                    responseType: "arraybuffer",
+                });
+                const imgPath = path.join(__dirname, "dvassets", `${i + 1}.jpg`);
+                await fs.outputFile(imgPath, imgResponse.data);
+                attachments.push(fs.createReadStream(imgPath));
+            }
+
+            await api.unsendMessage(msg.messageID);
+
+            await api.sendMessage(
+                {
+                    body: `✅ Here are your searched images for "${image}"\n✨ Total Image Count: ${totalImagesCount}`,
+                    attachment: attachments,
+                },
+                event.threadID,
+                event.messageID
+            );
         } catch (error) {
-          console.error(error);
-          // Handle image fetching errors (skip the problematic image)
+            console.error(error);
+            api.sendMessage(
+                `❌ Error: ${error.message}`,
+                event.threadID,
+                event.messageID
+            );
         }
-      }
-
-      await api.sendMessage({
-        attachment: imgData,
-        body: `Here are the top ${imgData.length} image results for "${keySearchs}":`
-      }, event.threadID, event.messageID);
-
-      await fs.remove(path.join(__dirname, 'cache'));
-    } catch (error) {
-      console.error(error);
-      return api.sendMessage(`An error occurred. Please try again later.`, event.threadID, event.messageID);
-    }
-  }
+    },
 };

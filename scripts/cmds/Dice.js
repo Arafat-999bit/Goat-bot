@@ -1,107 +1,110 @@
-module.exports.config = {
-  name: "dice",
-  version: "2.0",
-  hasPermission: 0,
-  credits: "Arafat Da",
-  description: "ডাইস গেম একা অথবা কাউকে চ্যালেঞ্জ করে খেলতে পারো",
-  commandCategory: "game",
-  usages: "[বেট] অথবা [বেট] @mention",
-  cooldowns: 5
-};
+const fs = require("fs");
 
-module.exports.run = async function ({ api, event, args, Currencies }) {
-  const { threadID, messageID, senderID, mentions } = event;
+module.exports = {
+  config: {
+    name: "dice",
+    version: "2.0",
+    hasPermission: 0,
+    credits: "Arafat",
+    description: "ডাইস গেম একা অথবা কাউকে চ্যালেঞ্জ করে খেলতে পারো",
+    category: "game",
+    usages: "[amount] অথবা [amount] @mention",
+    cooldowns: 5
+  },
 
-  let bet = parseInt(args[0]);
-  if (isNaN(bet) || bet <= 0) return api.sendMessage("❌ দয়া করে একটি বৈধ বেট এমাউন্ট দিন।", threadID, messageID);
+  onStart: async function ({ api, event, args, usersData, Currencies }) {
+    const { threadID, senderID, messageID, mentions } = event;
+    const bet = parseInt(args[0]);
 
-  const senderData = await Currencies.getData(senderID);
-  if (senderData.money < bet)
-    return api.sendMessage("❌ তোমার কাছে এত টাকা নেই!", threadID, messageID);
+    if (!bet || isNaN(bet) || bet <= 0) return api.sendMessage("❌ দয়া করে একটি সঠিক বেট অ্যামাউন্ট দাও।", threadID, messageID);
 
-  const mentionedID = Object.keys(mentions)[0];
+    const userBalance = (await Currencies.getData(senderID)).money;
+    if (userBalance < bet) return api.sendMessage("❌ তোমার কাছে এত টাকা নেই।", threadID, messageID);
 
-  // Multiplayer Mode
-  if (mentionedID) {
-    if (mentionedID === senderID) return api.sendMessage("❌ তুমি নিজেকেই চ্যালেঞ্জ করতে পারো না!", threadID, messageID);
+    // Multiplayer Mode
+    if (Object.keys(mentions).length > 0) {
+      const opponentID = Object.keys(mentions)[0];
+      const opponentName = mentions[opponentID].replace("@", "");
 
-    const opponentData = await Currencies.getData(mentionedID);
-    if (opponentData.money < bet)
-      return api.sendMessage(`❌ ${mentions[mentionedID].replace("@", "")} এর কাছে যথেষ্ট টাকা নেই!`, threadID, messageID);
+      if (opponentID == senderID) return api.sendMessage("❌ নিজেকে চ্যালেঞ্জ দিতে পারো না!", threadID, messageID);
 
-    return api.sendMessage(
-      `${mentions[mentionedID]}!\n${senderData.name} তোমাকে ${bet}$ বেটে ডাইস খেলায় চ্যালেঞ্জ করেছে!\n\nডাইস খেলতে চাইলে রিপ্লাই করো: Y\nনা খেলতে চাইলে: N`,
-      threadID,
-      async (err, info) => {
-        global.client.handleReply.push({
-          name: this.config.name,
-          messageID: info.messageID,
-          author: mentionedID,
-          challenger: senderID,
-          bet: bet,
-          type: "challenge"
-        });
+      const opponentBalance = (await Currencies.getData(opponentID)).money;
+      if (opponentBalance < bet) return api.sendMessage(`❌ ${opponentName} এর কাছে এত টাকা নেই।`, threadID, messageID);
+
+      api.sendMessage(
+        `${opponentName}, তুমি কি ${bet}$ বেটে ডাইস খেলতে চাও ${await usersData.getName(senderID)} এর সাথে?\n\n` +
+        `রাজি থাকলে রিপ্লাই করো 'Y' আর না চাইলে 'N'`,
+        threadID,
+        (err, info) => {
+          global.GoatBot.onReply.set(info.messageID, {
+            commandName: "dice",
+            messageID: info.messageID,
+            author: senderID,
+            opponentID,
+            bet
+          });
+        }
+      );
+    }
+
+    // Single Player Mode
+    else {
+      const userDice = Math.floor(Math.random() * 6) + 1;
+      const botDice = Math.floor(Math.random() * 6) + 1;
+
+      let result = `তুমি 🎲: ${userDice}\nবট 🎲: ${botDice}\n\n`;
+      if (userDice > botDice) {
+        await Currencies.increaseMoney(senderID, bet);
+        result += `✅ তুমি জিতেছো ${bet}$!`;
+      } else if (userDice < botDice) {
+        await Currencies.decreaseMoney(senderID, bet);
+        result += `❌ তুমি হারছো ${bet}$।`;
+      } else {
+        result += "🤝 টাই হয়েছে! কারও লাভ বা ক্ষতি হয়নি।";
       }
-    );
-  }
 
-  // Single Player Mode
-  await Currencies.decreaseMoney(senderID, bet);
+      return api.sendMessage(result, threadID, messageID);
+    }
+  },
 
-  const botDice = Math.floor(Math.random() * 6) + 1;
-  const userDice = Math.floor(Math.random() * 6) + 1;
+  onReply: async function ({ event, api, Currencies, usersData, Reply }) {
+    const { senderID, threadID, messageID, body } = event;
+    const { author, opponentID, bet } = Reply;
 
-  let result = `🎲 তুমি পেয়েছো: ${userDice}\n🤖 বট পেয়েছে: ${botDice}\n`;
+    if (senderID != opponentID) return;
 
-  if (userDice > botDice) {
-    await Currencies.increaseMoney(senderID, bet * 2);
-    result += `✅ তুমি জিতেছো! পেয়েছো ${bet * 2}$`;
-  } else if (userDice < botDice) {
-    result += `❌ তুমি হেরেছো! হারিয়েছো ${bet}$`;
-  } else {
-    await Currencies.increaseMoney(senderID, bet);
-    result += `⚖️ টাই হয়েছে! তোমার টাকা ফেরত দেওয়া হয়েছে`;
-  }
+    if (body.toLowerCase() == "y") {
+      const authorBalance = (await Currencies.getData(author)).money;
+      const opponentBalance = (await Currencies.getData(opponentID)).money;
 
-  return api.sendMessage(result, threadID, messageID);
-};
+      if (authorBalance < bet || opponentBalance < bet) {
+        return api.sendMessage("❌ দুজনের একাউন্টেই যথেষ্ট টাকা নেই।", threadID, messageID);
+      }
 
-module.exports.handleReply = async function ({ api, event, handleReply, Currencies }) {
-  const { threadID, messageID, senderID, body } = event;
-
-  if (handleReply.type === "challenge" && senderID === handleReply.author) {
-    const bet = handleReply.bet;
-    const challenger = handleReply.challenger;
-
-    if (body.toLowerCase() === "y") {
-      // চ্যালেঞ্জ এক্সেপ্ট করেছে
-      await Currencies.decreaseMoney(challenger, bet);
-      await Currencies.decreaseMoney(senderID, bet);
-
-      const challengerDice = Math.floor(Math.random() * 6) + 1;
+      const authorDice = Math.floor(Math.random() * 6) + 1;
       const opponentDice = Math.floor(Math.random() * 6) + 1;
 
-      let result = `🎮 ডাইস ম্যাচ শুরু!\n\n`;
-      result += `👤 ${challenger} পেয়েছে: ${challengerDice}\n`;
-      result += `👤 ${senderID} পেয়েছে: ${opponentDice}\n\n`;
+      let result = `ডাইস রোল হচ্ছে...\n\n` +
+        `${await usersData.getName(author)} 🎲: ${authorDice}\n` +
+        `${await usersData.getName(opponentID)} 🎲: ${opponentDice}\n\n`;
 
-      if (challengerDice > opponentDice) {
-        await Currencies.increaseMoney(challenger, bet * 2);
-        result += `✅ ${challenger} জিতেছে এবং পেয়েছে ${bet * 2}$`;
-      } else if (challengerDice < opponentDice) {
-        await Currencies.increaseMoney(senderID, bet * 2);
-        result += `✅ ${senderID} জিতেছে এবং পেয়েছে ${bet * 2}$`;
+      if (authorDice > opponentDice) {
+        await Currencies.decreaseMoney(opponentID, bet);
+        await Currencies.increaseMoney(author, bet);
+        result += `✅ ${await usersData.getName(author)} জিতেছে ${bet}$`;
+      } else if (authorDice < opponentDice) {
+        await Currencies.decreaseMoney(author, bet);
+        await Currencies.increaseMoney(opponentID, bet);
+        result += `✅ ${await usersData.getName(opponentID)} জিতেছে ${bet}$`;
       } else {
-        await Currencies.increaseMoney(challenger, bet);
-        await Currencies.increaseMoney(senderID, bet);
-        result += `⚖️ ম্যাচ ড্র! দুই পক্ষের টাকা ফেরত`;
+        result += "🤝 টাই হয়েছে! কারও লাভ বা ক্ষতি হয়নি।";
       }
 
       return api.sendMessage(result, threadID);
-    } else if (body.toLowerCase() === "n") {
-      return api.sendMessage("❌ তুমি ডাইস খেলায় অংশগ্রহণ করোনি।", threadID);
-    } else {
-      return api.sendMessage("❓ দয়া করে শুধুমাত্র Y বা N রিপ্লাই করো।", threadID);
+    }
+
+    if (body.toLowerCase() == "n") {
+      return api.sendMessage("❌ চ্যালেঞ্জ বাতিল হয়েছে।", threadID, messageID);
     }
   }
 };

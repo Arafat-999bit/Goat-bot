@@ -1,26 +1,22 @@
-const fs = require("fs");
-
 module.exports = {
   config: {
     name: "dice",
     version: "2.0",
     hasPermission: 0,
-    credits: "Arafat Da",
-    description: "ডাইস গেম একা অথবা কাউকে চ্যালেঞ্জ করে খেলতে পারো",
+    credits: "Arafat",
+    description: "ডাইস গেম, একা বা কাউকে চ্যালেঞ্জ করে খেলো",
     category: "game",
     usages: "[amount] অথবা [amount] @mention",
     cooldowns: 5
   },
 
-  onStart: async function ({ api, event, args, usersData }) {
-    const Currencies = global.controllers.Currencies;
+  onStart: async function ({ api, event, args, usersData, economy }) {
     const { threadID, senderID, messageID, mentions } = event;
     const bet = parseInt(args[0]);
+    if (!bet || isNaN(bet) || bet <= 0) return api.sendMessage("❌ সঠিক বেট অ্যামাউন্ট দাও।", threadID, messageID);
 
-    if (!bet || isNaN(bet) || bet <= 0) return api.sendMessage("❌ দয়া করে একটি সঠিক বেট অ্যামাউন্ট দাও।", threadID, messageID);
-
-    const userBalance = (await Currencies.getData(senderID)).money;
-    if (userBalance < bet) return api.sendMessage("❌ তোমার কাছে এত টাকা নেই।", threadID, messageID);
+    const userMoney = await economy.get(senderID);
+    if (userMoney < bet) return api.sendMessage("❌ তোমার কাছে যথেষ্ট টাকা নেই।", threadID, messageID);
 
     if (Object.keys(mentions).length > 0) {
       const opponentID = Object.keys(mentions)[0];
@@ -28,17 +24,16 @@ module.exports = {
 
       if (opponentID == senderID) return api.sendMessage("❌ নিজেকে চ্যালেঞ্জ দিতে পারো না!", threadID, messageID);
 
-      const opponentBalance = (await Currencies.getData(opponentID)).money;
-      if (opponentBalance < bet) return api.sendMessage(`❌ ${opponentName} এর কাছে এত টাকা নেই।`, threadID, messageID);
+      const oppMoney = await economy.get(opponentID);
+      if (oppMoney < bet) return api.sendMessage(`❌ ${opponentName} এর কাছে যথেষ্ট টাকা নেই।`, threadID, messageID);
 
       api.sendMessage(
         `${opponentName}, তুমি কি ${bet}$ বেটে ডাইস খেলতে চাও ${await usersData.getName(senderID)} এর সাথে?\n\n` +
-        `রাজি থাকলে রিপ্লাই করো 'Y' আর না চাইলে 'N'`,
+        `রাজি থাকলে রিপ্লাই করো 'Y', না চাইলে 'N' লিখো।`,
         threadID,
         (err, info) => {
           global.GoatBot.onReply.set(info.messageID, {
             commandName: "dice",
-            messageID: info.messageID,
             author: senderID,
             opponentID,
             bet
@@ -51,51 +46,48 @@ module.exports = {
 
       let result = `তুমি 🎲: ${userDice}\nবট 🎲: ${botDice}\n\n`;
       if (userDice > botDice) {
-        await Currencies.increaseMoney(senderID, bet);
+        await economy.add(senderID, bet);
         result += `✅ তুমি জিতেছো ${bet}$!`;
       } else if (userDice < botDice) {
-        await Currencies.decreaseMoney(senderID, bet);
+        await economy.add(senderID, -bet);
         result += `❌ তুমি হারছো ${bet}$।`;
       } else {
-        result += "🤝 টাই হয়েছে! কারও লাভ বা ক্ষতি হয়নি।";
+        result += "🤝 টাই! কোনো লাভ বা ক্ষতি হয়নি।";
       }
 
       return api.sendMessage(result, threadID, messageID);
     }
   },
 
-  onReply: async function ({ event, api, usersData, Reply }) {
-    const Currencies = global.controllers.Currencies;
+  onReply: async function ({ api, event, usersData, economy, Reply }) {
     const { senderID, threadID, messageID, body } = event;
     const { author, opponentID, bet } = Reply;
 
     if (senderID != opponentID) return;
 
     if (body.toLowerCase() == "y") {
-      const authorBalance = (await Currencies.getData(author)).money;
-      const opponentBalance = (await Currencies.getData(opponentID)).money;
-
-      if (authorBalance < bet || opponentBalance < bet) {
-        return api.sendMessage("❌ দুজনের একাউন্টেই যথেষ্ট টাকা নেই।", threadID, messageID);
-      }
+      const authorMoney = await economy.get(author);
+      const oppMoney = await economy.get(opponentID);
+      if (authorMoney < bet || oppMoney < bet)
+        return api.sendMessage("❌ দুইজনেরই পর্যাপ্ত টাকা থাকতে হবে!", threadID, messageID);
 
       const authorDice = Math.floor(Math.random() * 6) + 1;
-      const opponentDice = Math.floor(Math.random() * 6) + 1;
+      const oppDice = Math.floor(Math.random() * 6) + 1;
 
       let result = `ডাইস রোল হচ্ছে...\n\n` +
         `${await usersData.getName(author)} 🎲: ${authorDice}\n` +
-        `${await usersData.getName(opponentID)} 🎲: ${opponentDice}\n\n`;
+        `${await usersData.getName(opponentID)} 🎲: ${oppDice}\n\n`;
 
-      if (authorDice > opponentDice) {
-        await Currencies.decreaseMoney(opponentID, bet);
-        await Currencies.increaseMoney(author, bet);
+      if (authorDice > oppDice) {
+        await economy.add(author, bet);
+        await economy.add(opponentID, -bet);
         result += `✅ ${await usersData.getName(author)} জিতেছে ${bet}$`;
-      } else if (authorDice < opponentDice) {
-        await Currencies.decreaseMoney(author, bet);
-        await Currencies.increaseMoney(opponentID, bet);
+      } else if (authorDice < oppDice) {
+        await economy.add(author, -bet);
+        await economy.add(opponentID, bet);
         result += `✅ ${await usersData.getName(opponentID)} জিতেছে ${bet}$`;
       } else {
-        result += "🤝 টাই হয়েছে! কারও লাভ বা ক্ষতি হয়নি।";
+        result += "🤝 টাই! কেউ হারেনি।";
       }
 
       return api.sendMessage(result, threadID);

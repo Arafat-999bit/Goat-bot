@@ -21,35 +21,45 @@ module.exports = {
   onStart: async function ({ api, event, args, message }) {
     const { threadID, senderID, messageID } = event;
     const bet = parseInt(args[0]);
-    const usersData = global.controllers?.usersData;
-    const economy = global.controllers?.economy;
 
-    if (!usersData || !economy)
-      return message.reply("❌ ইউজার বা ইকোনমি ডাটা লোড হয়নি।");
+    // Load economy controller properly
+    const economy = global.controllers?.economy;
+    const usersData = global.controllers?.usersData;
+
+    // Check if economy or usersData are not available
+    if (!economy || !usersData) {
+      return message.reply("❌ ইউজার বা ইকোনমি ডাটা সঠিকভাবে লোড হয়নি।");
+    }
 
     if (isNaN(bet) || bet <= 0)
       return message.reply("⚠️ একটি সঠিক টাকার পরিমাণ লেখো। যেমন: #dice 100");
 
-    const balance = await economy.get(senderID);
-    if (balance < bet)
-      return message.reply("❌ তোমার কাছে যথেষ্ট টাকা নেই।");
+    try {
+      // Fetch the user's balance
+      const userBalance = await economy.get(senderID);
+      if (userBalance < bet)
+        return message.reply("❌ তোমার কাছে যথেষ্ট টাকা নেই।");
 
-    // Dice rolls
-    const userRoll = Math.floor(Math.random() * 6) + 1;
-    const botRoll = Math.floor(Math.random() * 6) + 1;
+      // Dice rolls
+      const userRoll = Math.floor(Math.random() * 6) + 1;
+      const botRoll = Math.floor(Math.random() * 6) + 1;
 
-    let resultMsg = `🎲 তুমি ${userRoll} পেলা, আমি পেলাম ${botRoll}!\n`;
+      let resultMsg = `🎲 তুমি ${userRoll} পেলা, আমি পেলাম ${botRoll}!\n`;
 
-    if (userRoll > botRoll) {
-      await economy.add(senderID, bet);
-      resultMsg += `✅ তুমি জিতেছো! তুমি ${bet} টাকা পেলে।`;
-    } else if (userRoll < botRoll) {
-      await economy.add(senderID, -bet);
-      resultMsg += `❌ তুমি হারলে! ${bet} টাকা কেটে নেওয়া হলো।`;
-    } else {
-      resultMsg += "⚖️ ড্র! টাকার কোনো পরিবর্তন হয়নি।";
+      if (userRoll > botRoll) {
+        await economy.add(senderID, bet); // Adding the bet to the user if win
+        resultMsg += `✅ তুমি জিতেছো! তুমি ${bet} টাকা পেলে।`;
+      } else if (userRoll < botRoll) {
+        await economy.add(senderID, -bet); // Deducting the bet if user loses
+        resultMsg += `❌ তুমি হারলে! ${bet} টাকা কেটে নেওয়া হলো।`;
+      } else {
+        resultMsg += "⚖️ ড্র! টাকার কোনো পরিবর্তন হয়নি।";
+      }
+
+      return message.reply(resultMsg);
+    } catch (error) {
+      console.error("Error occurred:", error);
+      return message.reply("❌ কিছু সমস্যা হয়েছে। আবার চেষ্টা করো।");
     }
-
-    return message.reply(resultMsg);
   }
 };

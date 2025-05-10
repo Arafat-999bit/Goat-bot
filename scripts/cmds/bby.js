@@ -153,7 +153,7 @@ const editMessage = async (api, threadID, messageID, senderID, input) => {
 
 module.exports.config = {
   name: "bby",
-  aliases: ["baby","bbu", "faiza", "shan"],
+  aliases: ["baby","bbu", "bot", "Arafat"],
   version: "1.6.9",
   author: "Nazrul",
   role: 0,
@@ -192,7 +192,7 @@ module.exports.onStart = async ({ api, event, args }) => {
 module.exports.onChat = async ({ api, event }) => {
   const { threadID, messageID, body, senderID } = event;
 
-  const cMessages = ["🎀 Hello bby!", "🎀 Hi there!", "🎀 Hey! How can I help?😝"];
+  const cMessages = ["🎀 Hello bby!", "🎀 Hi there!", "🎀 Hey! How can I help?😝","তোর কি সরম করে না"];
   const userInput = body.toLowerCase().trim();
 
   const keywords = ["bby", "shan", " faiza", "hii", "baby", "bot", "বট", "robot"];
@@ -206,7 +206,7 @@ module.exports.onChat = async ({ api, event }) => {
         const res = await axios.get(
           `${await getAPIBase()}/bby?text=${encodeURIComponent(question)}&uid=${senderID}&font=2`
         );
-        const replyMsg = res.data?.text || "Please teach me this sentence!🦆💨";
+        const replyMsg = res.data?.text || "তোর সাথে কথা নাই যা অন্য কারো কাছে 💔";
         const react = res.data.react || "";
 
         return api.sendMessage(replyMsg + react, threadID, (error, info) => {

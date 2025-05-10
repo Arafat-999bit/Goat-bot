@@ -7,34 +7,31 @@ module.exports = {
     cooldowns: 5,
     role: 0,
     shortDescription: {
-      en: ""
+      en: "বটের মেসেজ মুছুন"
     },
     longDescription: {
-      en: "unsent all messages sent by bot"
+      en: "এই কমান্ডটি বট যেসব মেসেজ পাঠিয়েছে তা আনসেন্ড করে দেয় (সর্বোচ্চ ৫০টি)"
     },
     category: "𝗕𝗢𝗫",
     guide: {
       en: "{p}{n}"
     }
   },
+
   onStart: async function ({ api, event }) {
-
-    const unsendBotMessages = async () => {
+    try {
       const threadID = event.threadID;
+      const history = await api.getThreadHistory(threadID, 50);
+      const botID = api.getCurrentUserID();
+      const botMessages = history.filter(msg => msg.senderID === botID);
 
-
-      const botMessages = await api.getThreadHistory(threadID, 50); // Adjust the limit as needed 50 = 50 msg
-
-
-      const botSentMessages = botMessages.filter(message => message.senderID === api.getCurrentUserID());
-
-
-      for (const message of botSentMessages) {
-        await api.unsendMessage(message.messageID);
+      for (const msg of botMessages) {
+        await api.unsendMessage(msg.messageID);
       }
-    };
 
-
-    await unsendBotMessages();
+    } catch (err) {
+      console.error("মেসেজ আনসেন্ড করতে সমস্যা হয়েছে:", err);
+      api.sendMessage("মেসেজ মুছে ফেলতে গিয়ে কোনো সমস্যা হয়েছে।", event.threadID);
+    }
   }
 };

@@ -5,14 +5,15 @@ module.exports = {
     name: "dice",
     version: "2.0",
     hasPermission: 0,
-    credits: "Arafat",
+    credits: "Arafat Da",
     description: "ডাইস গেম একা অথবা কাউকে চ্যালেঞ্জ করে খেলতে পারো",
     category: "game",
     usages: "[amount] অথবা [amount] @mention",
     cooldowns: 5
   },
 
-  onStart: async function ({ api, event, args, usersData, Currencies }) {
+  onStart: async function ({ api, event, args, usersData }) {
+    const Currencies = global.controllers.Currencies;
     const { threadID, senderID, messageID, mentions } = event;
     const bet = parseInt(args[0]);
 
@@ -21,7 +22,6 @@ module.exports = {
     const userBalance = (await Currencies.getData(senderID)).money;
     if (userBalance < bet) return api.sendMessage("❌ তোমার কাছে এত টাকা নেই।", threadID, messageID);
 
-    // Multiplayer Mode
     if (Object.keys(mentions).length > 0) {
       const opponentID = Object.keys(mentions)[0];
       const opponentName = mentions[opponentID].replace("@", "");
@@ -45,10 +45,7 @@ module.exports = {
           });
         }
       );
-    }
-
-    // Single Player Mode
-    else {
+    } else {
       const userDice = Math.floor(Math.random() * 6) + 1;
       const botDice = Math.floor(Math.random() * 6) + 1;
 
@@ -67,7 +64,8 @@ module.exports = {
     }
   },
 
-  onReply: async function ({ event, api, Currencies, usersData, Reply }) {
+  onReply: async function ({ event, api, usersData, Reply }) {
+    const Currencies = global.controllers.Currencies;
     const { senderID, threadID, messageID, body } = event;
     const { author, opponentID, bet } = Reply;
 

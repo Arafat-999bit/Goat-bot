@@ -1,125 +1,101 @@
-// Dice Game with PvP Challenge, Single Player, and Leaderboard const { getStreamFromURL } = global.utils;
+module.exports.config = { name: "dice", version: "2.0", hasPermission: 0, credits: "Arafat Da", description: "Play a dice betting game", commandCategory: "economy", usages: "#dice [amount] | #dice @user [amount] | #dice leaderboard/list/top", cooldowns: 5 };
 
-let challenges = {}; let leaderboard = {};
+const fs = require("fs"); const path = __dirname + "/cache/dice.json";
 
-module.exports = { config: { name: "dice", version: "4.0", author: "Arafat Da", countDown: 5, role: 0, shortDescription: "ডাইস গেম - PvP, সিঙ্গেল প্লেয়ার ও লিডারবোর্ড", longDescription: "ডাইস গেম: মেনশন করে PvP খেলা + সিঙ্গেল প্লেয়ার মোড + বেটিং সিস্টেম + লিডারবোর্ড", category: "game", guide: { en: "{pn} [amount] (@opponent)\n{pn} leaderboard" } },
+let leaderboard = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path)) : {};
 
-onStart: async function ({ message, event, args, usersData, economy, commandName }) { const senderID = event.senderID; const mentionIDs = Object.keys(event.mentions || {});
+function saveLeaderboard() { fs.writeFileSync(path, JSON.stringify(leaderboard, null, 2)); }
 
-if (['leaderboard', 'list', 'top'].includes(args[0])) {
-  let board = Object.entries(leaderboard)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(async ([id, score], i) => {
-      const name = await usersData.getName(id);
-      return `${i + 1}. ${name}: ${score} জয়`;
-    });
-  const resolved = await Promise.all(board);
-  return message.reply("🏆 ডাইস লিডারবোর্ড:\n\n" + resolved.join("\n"));
+module.exports.run = async function ({ api, event, args, Currencies }) { const { threadID, senderID, messageID, mentions } = event;
+
+if (!leaderboard[senderID]) leaderboard[senderID] = { wins: 0, losses: 0 };
+
+// Leaderboard command if (["leaderboard", "list", "top"].includes(args[0])) { const sorted = Object.entries(leaderboard) .sort((a, b) => b[1].wins - a[1].wins) .slice(0, 10);
+
+let msg = "=== Dice Leaderboard ===\n";
+for (let i = 0; i < sorted.length; i++) {
+  const [uid, stats] = sorted[i];
+  const name = (await api.getUserInfo(uid))[uid]?.name || "Unknown";
+  msg += `\n${i + 1}. ${name} - ${stats.wins} Wins | ${stats.losses} Losses`;
+}
+return api.sendMessage(msg, threadID, messageID);
+
 }
 
-const bet = parseInt(args[0]);
-if (!bet || isNaN(bet) || bet <= 0)
-  return message.reply("সঠিকভাবে বেট লিখো! উদাহরণ: #dice 100 অথবা #dice 100 @রাকিব");
+let bet = parseInt(args[0]); if (!isNaN(bet)) { const userBalance = (await Currencies.getData(senderID)).money; if (bet <= 0 || userBalance < bet) return api.sendMessage("❌ তোমার কাছে এত টাকা নেই বা ইনপুট ভুল।", threadID, messageID);
 
-if (mentionIDs.length === 0) {
-  // Single player mode
-  const balance = await economy.getMoney(senderID);
-  if (balance < bet) return message.reply(`তোমার কাছে ${bet} কয়েন নেই!`);
+const botRoll = Math.floor(Math.random() * 6) + 1;
+const userRoll = Math.floor(Math.random() * 6) + 1;
 
-  await economy.updateMoney(senderID, -bet);
-  const roll = Math.floor(Math.random() * 6) + 1;
-  const win = roll >= 4;
+let result = `🎲 তুমি ${userRoll} পেয়েছো
 
-  if (win) {
-    await economy.updateMoney(senderID, bet * 2);
-    leaderboard[senderID] = (leaderboard[senderID] || 0) + 1;
-    return message.reply(`🎲 তুমি পেলা ${roll}! তুমি জিতেছো এবং পেয়েছো ${bet * 2} কয়েন!`);
-  } else {
-    return message.reply(`🎲 তুমি পেলা ${roll}! তুমি হেরে গেছো এবং হারিয়েছো ${bet} কয়েন!`);
+🤖 বট পেয়েছে ${botRoll}\n`;
+
+if (userRoll > botRoll) {
+  await Currencies.increaseMoney(senderID, bet);
+  leaderboard[senderID].wins++;
+  result += `✅ তুমি ${bet} টাকা জিতেছো!`;
+} else if (userRoll < botRoll) {
+  await Currencies.decreaseMoney(senderID, bet);
+  leaderboard[senderID].losses++;
+  result += `❌ তুমি ${bet} টাকা হেরেছো!`;
+} else {
+  result += "⚖️ খেলাটা ড্র হয়েছে! কোনো টাকা কাটা হয়নি।";
+}
+
+saveLeaderboard();
+return api.sendMessage(result, threadID, messageID);
+
+}
+
+// PvP dice match const mentionID = Object.keys(mentions)[0]; const mentionName = mentions[mentionID]; const pvpBet = parseInt(args[1]);
+
+if (mentionID && !isNaN(pvpBet)) { const userBal1 = (await Currencies.getData(senderID)).money; const userBal2 = (await Currencies.getData(mentionID)).money;
+
+if (userBal1 < pvpBet || userBal2 < pvpBet)
+  return api.sendMessage("❌ দুইজনের কাছেই পর্যাপ্ত টাকা থাকতে হবে।", threadID, messageID);
+
+global.dicePvP = global.dicePvP || {};
+global.dicePvP[threadID] = {
+  challenger: senderID,
+  opponent: mentionID,
+  bet: pvpBet,
+  messageID: null
+};
+
+return api.sendMessage({
+  body: `${event.senderID} ${mentionName}, তোমাকে ${pvpBet} টাকার ডাইস খেলার চ্যালেঞ্জ করেছে।
+
+রাজি থাকলে "Y" এবং না থাকলে "N" রিপ্লাই করো।`, mentions: [{ id: mentionID, tag: mentionName }] }, threadID, (err, info) => global.dicePvP[threadID].messageID = info.messageID); }
+
+// PvP response handler if (global.dicePvP && global.dicePvP[threadID]) { const pvp = global.dicePvP[threadID]; if (event.messageID === pvp.messageID && senderID === pvp.opponent) { if (event.body.toLowerCase() === "y") { const roll1 = Math.floor(Math.random() * 6) + 1; const roll2 = Math.floor(Math.random() * 6) + 1; let result = 🎲 ${pvp.challenger} পেয়েছে ${roll1} 🎲 ${pvp.opponent} পেয়েছে ${roll2}\n;
+
+if (roll1 > roll2) {
+      await Currencies.increaseMoney(pvp.challenger, pvp.bet);
+      await Currencies.decreaseMoney(pvp.opponent, pvp.bet);
+      leaderboard[pvp.challenger].wins++;
+      leaderboard[pvp.opponent].losses++;
+      result += `✅ ${pvp.challenger} জিতে গেছে ${pvp.bet * 2} টাকা!`;
+    } else if (roll1 < roll2) {
+      await Currencies.increaseMoney(pvp.opponent, pvp.bet);
+      await Currencies.decreaseMoney(pvp.challenger, pvp.bet);
+      leaderboard[pvp.opponent].wins++;
+      leaderboard[pvp.challenger].losses++;
+      result += `✅ ${pvp.opponent} জিতে গেছে ${pvp.bet * 2} টাকা!`;
+    } else {
+      result += "⚖️ ম্যাচটি ড্র হয়েছে, কারো টাকা কাটেনি।";
+    }
+
+    saveLeaderboard();
+    delete global.dicePvP[threadID];
+    return api.sendMessage(result, threadID);
+  } else if (event.body.toLowerCase() === "n") {
+    delete global.dicePvP[threadID];
+    return api.sendMessage("❌ চ্যালেঞ্জ বাতিল হয়েছে।", threadID);
   }
 }
 
-// PvP mode
-const opponentID = mentionIDs[0];
-if (opponentID === senderID) return message.reply("তুমি নিজেই নিজের সাথে খেলতে পারো না!");
-
-const senderMoney = await economy.getMoney(senderID);
-const opponentMoney = await economy.getMoney(opponentID);
-
-if (senderMoney < bet) return message.reply(`তোমার কাছে পর্যাপ্ত (${bet}) কয়েন নেই!`);
-if (opponentMoney < bet) return message.reply(`প্রতিদ্বন্দ্বীর কাছে পর্যাপ্ত (${bet}) কয়েন নেই!`);
-
-const senderName = await usersData.getName(senderID);
-const opponentName = await usersData.getName(opponentID);
-
-challenges[opponentID] = {
-  challengerID: senderID,
-  bet: bet,
-  timestamp: Date.now()
-};
-
-return message.reply({
-  body: `${opponentName}, তুমি কি ${senderName}-এর সাথে ডাইস খেলতে রাজি?\n\nবেট: ${bet} কয়েন\n\n**রাজি থাকলে রিপ্লাই করো: Y**\n**না থাকলে রিপ্লাই করো: N**`,
-  mentions: [{ tag: opponentName, id: opponentID }]
-});
-
-},
-
-onReply: async function ({ message, event, reply, usersData, economy }) { const replyUser = event.senderID; const content = event.body.toLowerCase();
-
-const challenge = challenges[replyUser];
-if (!challenge) return;
-
-const { challengerID, bet } = challenge;
-const challengerName = await usersData.getName(challengerID);
-const opponentName = await usersData.getName(replyUser);
-
-if (content === "n") {
-  delete challenges[replyUser];
-  return message.reply(`${opponentName} চ্যালেঞ্জ গ্রহণ করেনি। খেলা বাতিল হয়েছে।`);
 }
 
-if (content !== "y") return;
-
-const challengerMoney = await economy.getMoney(challengerID);
-const opponentMoney = await economy.getMoney(replyUser);
-
-if (challengerMoney < bet || opponentMoney < bet) {
-  delete challenges[replyUser];
-  return message.reply(`কোনো একজনের কাছে পর্যাপ্ত কয়েন নেই। খেলা বাতিল।`);
-}
-
-await economy.updateMoney(challengerID, -bet);
-await economy.updateMoney(replyUser, -bet);
-
-const roll1 = Math.floor(Math.random() * 6) + 1;
-const roll2 = Math.floor(Math.random() * 6) + 1;
-const dice = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
-
-let result;
-if (roll1 > roll2) {
-  await economy.updateMoney(challengerID, bet * 2);
-  leaderboard[challengerID] = (leaderboard[challengerID] || 0) + 1;
-  result = `${challengerName} জিতেছে এবং পেয়েছে ${bet * 2} কয়েন!`;
-} else if (roll2 > roll1) {
-  await economy.updateMoney(replyUser, bet * 2);
-  leaderboard[replyUser] = (leaderboard[replyUser] || 0) + 1;
-  result = `${opponentName} জিতেছে এবং পেয়েছে ${bet * 2} কয়েন!`;
-} else {
-  await economy.updateMoney(challengerID, bet);
-  await economy.updateMoney(replyUser, bet);
-  result = "খেলা ড্র হয়েছে! দুইজনকেই টাকা ফেরত দেয়া হয়েছে।";
-}
-
-delete challenges[replyUser];
-
-return message.reply(
-  `🎲 **ডাইস চ্যালেঞ্জ** 🎲\n\n` +
-  `${challengerName}: ${dice[roll1 - 1]} (${roll1})\n` +
-  `${opponentName}: ${dice[roll2 - 1]} (${roll2})\n\n` +
-  result
-);
-
-} };
+return api.sendMessage("❌ ভুল ফরম্যাট!\nসঠিকভাবে ব্যবহার করো:\n#dice [amount]\n#dice @user [amount]\n#dice leaderboard | list | top", threadID, messageID); };
 
